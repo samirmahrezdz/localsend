@@ -558,7 +558,7 @@ class ReceiveController {
       return;
     }
 
-    // ignore: unawaited_futures
+    // ignore: unawaited_futures, discarded_futures
     server.ref.global.dispatchAsync(HandleExternalArgsAction(args: args));
   }
 

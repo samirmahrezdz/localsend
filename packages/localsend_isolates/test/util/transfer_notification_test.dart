@@ -4,46 +4,48 @@ import 'package:localsend_isolates/util/notification_strings.dart';
 import 'package:localsend_isolates/util/transfer_notification.dart';
 
 void main() {
-  setUp(() async {
+  setUp(() {
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
     TransferNotification.init(
       NotificationStrings(
-        titleIncoming: 'Incoming',
-        titleOutgoing: 'Outgoing',
-        text: ({required fileCount}) => '$fileCount files',
+        titleReceiving: 'Receiving',
+        titleSending: 'Sending',
         titleListening: 'Listening',
         textListening: 'Ready to receive',
+        remainingTimeMinutes: ({required m, required ss}) => '$m:$ss',
+        remainingTimeLong: ({required h, required m}) => '${h}h ${m}m',
       ),
     );
-    await TransferNotification.setPersistentListening(false);
+    TransferNotification.setPersistentListening(false);
   });
 
-  tearDown(() async {
-    await TransferNotification.setPersistentListening(false);
+  tearDown(() {
+    TransferNotification.setPersistentListening(false);
     debugDefaultTargetPlatformOverride = null;
   });
 
   test('NotificationStrings uses default listening strings when omitted', () {
     final strings = NotificationStrings(
-      titleIncoming: 'In',
-      titleOutgoing: 'Out',
-      text: ({required fileCount}) => '$fileCount',
+      titleReceiving: 'In',
+      titleSending: 'Out',
+      remainingTimeMinutes: ({required m, required ss}) => '$m:$ss',
+      remainingTimeLong: ({required h, required m}) => '${h}h ${m}m',
     );
     expect(strings.titleListening, isNotEmpty);
     expect(strings.textListening, isNotEmpty);
   });
 
-  test('setPersistentListening tracks enabled state across transfer lifecycle', () async {
+  test('setPersistentListening tracks enabled state across transfer lifecycle', () {
     expect(TransferNotification.isPersistentListening, isFalse);
 
-    await TransferNotification.setPersistentListening(true);
+    TransferNotification.setPersistentListening(true);
     expect(TransferNotification.isPersistentListening, isTrue);
 
-    await TransferNotification.start('session-1', incoming: true, fileCount: 2);
-    await TransferNotification.stop('session-1');
+    TransferNotification.start(sessionId: 'session-1', receiving: true);
+    TransferNotification.stop('session-1');
     expect(TransferNotification.isPersistentListening, isTrue);
 
-    await TransferNotification.setPersistentListening(false);
+    TransferNotification.setPersistentListening(false);
     expect(TransferNotification.isPersistentListening, isFalse);
   });
 }

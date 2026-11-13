@@ -52,11 +52,27 @@ jobs:
 
       - name: Analyze (app)
         working-directory: app
-        run: flutter analyze
+        run: |
+          set +e
+          flutter analyze > /tmp/analyze_app.log 2>&1
+          rc=$?
+          cat /tmp/analyze_app.log
+          if [ "$rc" -ne 0 ]; then
+            python3 -c "lines=[l.strip() for l in open('/tmp/analyze_app.log', encoding='utf-8', errors='replace') if l.strip()]; print('::error::Analyze(app) failed: ' + ' | '.join(lines[:15]))"
+            exit "$rc"
+          fi
 
       - name: Test (app)
         working-directory: app
-        run: flutter test
+        run: |
+          set +e
+          flutter test > /tmp/test_app.log 2>&1
+          rc=$?
+          cat /tmp/test_app.log
+          if [ "$rc" -ne 0 ]; then
+            python3 -c "lines=[l.strip() for l in open('/tmp/test_app.log', encoding='utf-8', errors='replace') if l.strip()]; print('::error::Test(app) failed: ' + ' | '.join(lines[-20:]))"
+            exit "$rc"
+          fi
 
       - name: Dependencies (localsend_isolates)
         working-directory: packages/localsend_isolates
@@ -64,11 +80,27 @@ jobs:
 
       - name: Analyze (localsend_isolates)
         working-directory: packages/localsend_isolates
-        run: flutter analyze
+        run: |
+          set +e
+          flutter analyze > /tmp/analyze_iso.log 2>&1
+          rc=$?
+          cat /tmp/analyze_iso.log
+          if [ "$rc" -ne 0 ]; then
+            python3 -c "lines=[l.strip() for l in open('/tmp/analyze_iso.log', encoding='utf-8', errors='replace') if l.strip()]; print('::error::Analyze(iso) failed: ' + ' | '.join(lines[:15]))"
+            exit "$rc"
+          fi
 
       - name: Test (localsend_isolates)
         working-directory: packages/localsend_isolates
-        run: flutter test
+        run: |
+          set +e
+          flutter test > /tmp/test_iso.log 2>&1
+          rc=$?
+          cat /tmp/test_iso.log
+          if [ "$rc" -ne 0 ]; then
+            python3 -c "lines=[l.strip() for l in open('/tmp/test_iso.log', encoding='utf-8', errors='replace') if l.strip()]; print('::error::Test(iso) failed: ' + ' | '.join(lines[-20:]))"
+            exit "$rc"
+          fi
 
   build_windows:
     needs: build
@@ -209,7 +241,15 @@ jobs:
 
       - name: Build APK
         working-directory: ${{ env.APK_BUILD_DIR }}/app
-        run: flutter build apk --split-per-abi
+        run: |
+          set +e
+          flutter build apk --split-per-abi > /tmp/apk_build.log 2>&1
+          rc=$?
+          cat /tmp/apk_build.log
+          if [ "$rc" -ne 0 ]; then
+            python3 -c "import re; lines=[l.strip() for l in open('/tmp/apk_build.log', encoding='utf-8', errors='replace') if l.strip()]; errs=[l for l in lines if re.search(r'(error|exception|failed|cannot find symbol|could not)', l, re.I)]; pick=(errs[:15] + lines[-15:])[:25]; print('::error::Build APK failed: ' + ' | '.join(pick))"
+            exit "$rc"
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v6
