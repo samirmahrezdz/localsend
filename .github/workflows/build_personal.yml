@@ -58,7 +58,7 @@ jobs:
           rc=$?
           cat /tmp/analyze_app.log
           if [ "$rc" -ne 0 ]; then
-            python3 -c "lines=[l.strip() for l in open('/tmp/analyze_app.log', encoding='utf-8', errors='replace') if l.strip()]; print('::error::Analyze(app) failed: ' + ' | '.join(lines[:15]))"
+            python3 -c "lines=[l.strip() for l in open('/tmp/analyze_app.log', encoding='utf-8', errors='replace') if l.strip()]; diags=[l for l in lines if (' • ' in l or 'error ' in l.lower() or 'warning ' in l.lower()) and not l.startswith(('Resolving','Downloading','Got dependencies','! '))]; out=(diags[:25] if diags else lines[-25:]); print('::error::Analyze(app) failed: ' + ' | '.join(out)[:3500])"
             exit "$rc"
           fi
 
@@ -86,7 +86,7 @@ jobs:
           rc=$?
           cat /tmp/analyze_iso.log
           if [ "$rc" -ne 0 ]; then
-            python3 -c "lines=[l.strip() for l in open('/tmp/analyze_iso.log', encoding='utf-8', errors='replace') if l.strip()]; print('::error::Analyze(iso) failed: ' + ' | '.join(lines[:15]))"
+            python3 -c "lines=[l.strip() for l in open('/tmp/analyze_iso.log', encoding='utf-8', errors='replace') if l.strip()]; diags=[l for l in lines if (' • ' in l or 'error ' in l.lower() or 'warning ' in l.lower()) and not l.startswith(('Resolving','Downloading','Got dependencies','! '))]; out=(diags[:25] if diags else lines[-25:]); print('::error::Analyze(iso) failed: ' + ' | '.join(out)[:3500])"
             exit "$rc"
           fi
 
