@@ -66,11 +66,11 @@ jobs:
         working-directory: app
         run: |
           set +e
-          flutter test > /tmp/test_app.log 2>&1
+          flutter test -r expanded > /tmp/test_app.log 2>&1
           rc=$?
           cat /tmp/test_app.log
           if [ "$rc" -ne 0 ]; then
-            python3 -c "lines=[l.strip() for l in open('/tmp/test_app.log', encoding='utf-8', errors='replace') if l.strip()]; print('::error::Test(app) failed: ' + ' | '.join(lines[-20:]))"
+            python3 -c "lines=[l.strip() for l in open('/tmp/test_app.log', encoding='utf-8', errors='replace') if l.strip()]; errs=[l for i,l in enumerate(lines) if any(k in l for k in ('[E]','Expected:','Actual:','EXCEPTION','Some tests failed','FAIL')) or (i>0 and '[E]' in lines[i-1])]; out=(errs[:25] if errs else lines[-20:]); print('::error::Test(app) failed: ' + ' | '.join(out)[:3500])"
             exit "$rc"
           fi
 
@@ -94,11 +94,11 @@ jobs:
         working-directory: packages/localsend_isolates
         run: |
           set +e
-          flutter test > /tmp/test_iso.log 2>&1
+          flutter test -r expanded > /tmp/test_iso.log 2>&1
           rc=$?
           cat /tmp/test_iso.log
           if [ "$rc" -ne 0 ]; then
-            python3 -c "lines=[l.strip() for l in open('/tmp/test_iso.log', encoding='utf-8', errors='replace') if l.strip()]; print('::error::Test(iso) failed: ' + ' | '.join(lines[-20:]))"
+            python3 -c "lines=[l.strip() for l in open('/tmp/test_iso.log', encoding='utf-8', errors='replace') if l.strip()]; errs=[l for i,l in enumerate(lines) if any(k in l for k in ('[E]','Expected:','Actual:','EXCEPTION','Some tests failed','FAIL')) or (i>0 and '[E]' in lines[i-1])]; out=(errs[:25] if errs else lines[-20:]); print('::error::Test(iso) failed: ' + ' | '.join(out)[:3500])"
             exit "$rc"
           fi
 

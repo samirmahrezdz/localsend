@@ -23,7 +23,7 @@ String buildContextMenuLabel({
   if (trimmed == null || trimmed.isEmpty) {
     return defaultLabel;
   }
-  final clipped = trimmed.length > 32 ? '${trimmed.substring(0, 32)}…' : trimmed;
+  final clipped = trimmed.length > 32 ? '${trimmed.substring(0, 31)}…' : trimmed;
   return targetLabel(clipped);
 }
 
