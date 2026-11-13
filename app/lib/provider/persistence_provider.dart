@@ -96,6 +96,11 @@ const _createChecksums = 'ls_create_checksums';
 const _verifyChecksums = 'ls_verify_checksums';
 const _advancedSettingsKey = 'ls_advanced_settings';
 const _whatsNewKey = 'ls_whats_new';
+const _defaultTargetFingerprintKey = 'ls_default_target_fingerprint';
+const _autoSendToDefaultKey = 'ls_auto_send_to_default';
+const _silentQuickSaveKey = 'ls_silent_quick_save';
+const _quickSaveMessagesKey = 'ls_quick_save_messages';
+const _backgroundListenerKey = 'ls_background_listener';
 
 final persistenceProvider = Provider<PersistenceService>((ref) {
   throw Exception('persistenceProvider not initialized');
@@ -454,6 +459,50 @@ class PersistenceService {
 
   Future<void> setAdvancedSettingsEnabled(bool isEnabled) async {
     await _prefs.setBool(_advancedSettingsKey, isEnabled);
+  }
+
+  String? getDefaultTargetFingerprint() {
+    return _prefs.getString(_defaultTargetFingerprintKey);
+  }
+
+  Future<void> setDefaultTargetFingerprint(String? fingerprint) async {
+    if (fingerprint == null) {
+      await _prefs.remove(_defaultTargetFingerprintKey);
+    } else {
+      await _prefs.setString(_defaultTargetFingerprintKey, fingerprint);
+    }
+  }
+
+  bool isAutoSendToDefault() {
+    return _prefs.getBool(_autoSendToDefaultKey) ?? true;
+  }
+
+  Future<void> setAutoSendToDefault(bool enabled) async {
+    await _prefs.setBool(_autoSendToDefaultKey, enabled);
+  }
+
+  bool isSilentQuickSave() {
+    return _prefs.getBool(_silentQuickSaveKey) ?? false;
+  }
+
+  Future<void> setSilentQuickSave(bool enabled) async {
+    await _prefs.setBool(_silentQuickSaveKey, enabled);
+  }
+
+  bool isQuickSaveMessages() {
+    return _prefs.getBool(_quickSaveMessagesKey) ?? false;
+  }
+
+  Future<void> setQuickSaveMessages(bool enabled) async {
+    await _prefs.setBool(_quickSaveMessagesKey, enabled);
+  }
+
+  bool isBackgroundListener() {
+    return _prefs.getBool(_backgroundListenerKey) ?? false;
+  }
+
+  Future<void> setBackgroundListener(bool enabled) async {
+    await _prefs.setBool(_backgroundListenerKey, enabled);
   }
 
   QuickSaveMode getQuickSave() {

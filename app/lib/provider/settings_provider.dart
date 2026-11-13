@@ -79,6 +79,11 @@ class SettingsService extends PureNotifier<SettingsState> {
     verifyChecksums: _persistence.getVerifyChecksums(),
     discoveryTimeout: _persistence.getDiscoveryTimeout(),
     advancedSettings: _persistence.getAdvancedSettingsEnabled(),
+    defaultTargetFingerprint: _persistence.getDefaultTargetFingerprint(),
+    autoSendToDefault: _persistence.isAutoSendToDefault(),
+    silentQuickSave: _persistence.isSilentQuickSave(),
+    quickSaveMessages: _persistence.isQuickSaveMessages(),
+    backgroundListener: _persistence.isBackgroundListener(),
   );
 
   Future<void> setAlias(String alias) async {
@@ -113,6 +118,41 @@ class SettingsService extends PureNotifier<SettingsState> {
     await _persistence.setAdvancedSettingsEnabled(isEnabled);
     state = state.copyWith(
       advancedSettings: isEnabled,
+    );
+  }
+
+  Future<void> setDefaultTargetFingerprint(String? fingerprint) async {
+    await _persistence.setDefaultTargetFingerprint(fingerprint);
+    state = state.copyWith(
+      defaultTargetFingerprint: fingerprint,
+    );
+  }
+
+  Future<void> setAutoSendToDefault(bool enabled) async {
+    await _persistence.setAutoSendToDefault(enabled);
+    state = state.copyWith(
+      autoSendToDefault: enabled,
+    );
+  }
+
+  Future<void> setSilentQuickSave(bool enabled) async {
+    await _persistence.setSilentQuickSave(enabled);
+    state = state.copyWith(
+      silentQuickSave: enabled,
+    );
+  }
+
+  Future<void> setQuickSaveMessages(bool enabled) async {
+    await _persistence.setQuickSaveMessages(enabled);
+    state = state.copyWith(
+      quickSaveMessages: enabled,
+    );
+  }
+
+  Future<void> setBackgroundListener(bool enabled) async {
+    await _persistence.setBackgroundListener(enabled);
+    state = state.copyWith(
+      backgroundListener: enabled,
     );
   }
 

@@ -3,10 +3,11 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/model/state/server/receive_session_state.dart';
 import 'package:localsend_app/model/state/server/receiving_file.dart';
 import 'package:localsend_app/pages/home_page.dart';
-import 'package:localsend_app/pages/home_page_controller.dart';
 import 'package:localsend_app/pages/progress_page.dart';
 import 'package:localsend_app/pages/receive_page.dart';
 import 'package:localsend_app/provider/device_info_provider.dart';
@@ -14,13 +15,13 @@ import 'package:localsend_app/provider/favorites_provider.dart';
 import 'package:localsend_app/provider/file_transfer_provider.dart';
 import 'package:localsend_app/provider/http_provider.dart';
 import 'package:localsend_app/provider/logging/discovery_logs_provider.dart';
+import 'package:localsend_app/provider/network/quick_send_provider.dart';
 import 'package:localsend_app/provider/network/send_provider.dart';
 import 'package:localsend_app/provider/network/server/server_provider.dart';
 import 'package:localsend_app/provider/network/server/server_utils.dart';
 import 'package:localsend_app/provider/receive_history_provider.dart';
 import 'package:localsend_app/provider/security_provider.dart';
 import 'package:localsend_app/provider/selection/selected_receiving_files_provider.dart';
-import 'package:localsend_app/provider/selection/selected_sending_files_provider.dart';
 import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/util/native/directories.dart';
 import 'package:localsend_app/util/native/platform_check.dart';
@@ -42,6 +43,31 @@ import 'package:uuid/uuid.dart';
 import 'package:window_manager/window_manager.dart';
 
 final _logger = Logger('ReceiveController');
+
+/// Returns true when an incoming file or message request should be auto-accepted via Quick Save.
+bool shouldQuickSaveRequest({
+  required bool quickSave,
+  required bool quickSaveFromFavorites,
+  required bool isFavoriteSender,
+  required bool isWebUpload,
+  required bool receiveViaLinkAutoAccept,
+  required bool isMessage,
+  required bool quickSaveMessages,
+}) {
+  if (isMessage && !quickSaveMessages) {
+    return false;
+  }
+  if (quickSave) {
+    return true;
+  }
+  if (quickSaveFromFavorites && isFavoriteSender) {
+    return true;
+  }
+  if (isWebUpload && receiveViaLinkAutoAccept) {
+    return true;
+  }
+  return false;
+}
 
 /// Handles all server events for receiving files.
 /// The HTTP requests themselves are served by the Rust server which emits
@@ -126,20 +152,19 @@ class ReceiveController {
           statuses: {for (final file in files.values) file.id: FileStatus.queue},
         );
 
-    bool quickSave = settings.quickSave && server.getState().session?.message == null;
-    final quickSaveFromFavorites = settings.quickSaveFromFavorites && server.getState().session?.message == null;
-    if (quickSaveFromFavorites) {
-      final bool isFavorite = server.ref.read(favoritesProvider).any((e) => e.fingerprint == senderFingerprint);
-      if (isFavorite) {
-        quickSave = true;
-      }
-    }
-    if (server.getState().webUpload && settings.receiveViaLinkAutoAccept && server.getState().session?.message == null) {
-      // The upload page (receive via link) is being served and requests should be accepted automatically.
-      quickSave = true;
-    }
+    final isFavorite = server.ref.read(favoritesProvider).any((e) => e.fingerprint == senderFingerprint);
+    final isMessage = server.getState().session?.message != null;
+    final quickSave = shouldQuickSaveRequest(
+      quickSave: settings.quickSave,
+      quickSaveFromFavorites: settings.quickSaveFromFavorites,
+      isFavoriteSender: isFavorite,
+      isWebUpload: server.getState().webUpload,
+      receiveViaLinkAutoAccept: settings.receiveViaLinkAutoAccept,
+      isMessage: isMessage,
+      quickSaveMessages: settings.quickSaveMessages,
+    );
 
-    if (quickSave) {
+    if (quickSave && !isMessage) {
       // Push before accepting: the permission request in [acceptFileRequest] may block for a while.
       // ignore: use_build_context_synchronously, unawaited_futures
       Routerino.context.pushImmediately(
@@ -179,6 +204,22 @@ class ReceiveController {
               timestamp: DateTime.now().toUtc(),
             ),
           );
+    }
+
+    if (message != null && quickSave) {
+      try {
+        await Clipboard.setData(ClipboardData(text: message));
+      } catch (e) {
+        _logger.fine('Could not copy quick-saved message to clipboard: $e');
+      }
+      final context = Routerino.navigatorKey.currentContext;
+      if (context != null && context.mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text(t.sendTab.quickSend.messageReceived(alias: server.getState().session?.senderAlias ?? event.info.alias))),
+        );
+      }
+      await acceptFileRequest({});
+      return;
     }
 
     final receiveProvider = ViewProvider((ref) {
@@ -413,14 +454,17 @@ class ReceiveController {
       // Only auto-close fully successful sessions: a failed file may still be
       // retried by the sender (e.g. after a checksum mismatch), which requires
       // the session to stay open.
-      bool quickSave = settings.quickSave && !hasError && server.getState().session?.message == null;
-      final quickSaveFromFavorites = settings.quickSaveFromFavorites && !hasError && server.getState().session?.message == null;
-      if (quickSaveFromFavorites) {
-        final bool isFavorite = server.ref.read(favoritesProvider).any((e) => e.fingerprint == session.sender.fingerprint);
-        if (isFavorite) {
-          quickSave = true;
-        }
-      }
+      final isFavorite = server.ref.read(favoritesProvider).any((e) => e.fingerprint == session.sender.fingerprint);
+      final quickSave = !hasError &&
+          shouldQuickSaveRequest(
+            quickSave: settings.quickSave,
+            quickSaveFromFavorites: settings.quickSaveFromFavorites,
+            isFavoriteSender: isFavorite,
+            isWebUpload: server.getState().webUpload,
+            receiveViaLinkAutoAccept: settings.receiveViaLinkAutoAccept,
+            isMessage: session.message != null,
+            quickSaveMessages: settings.quickSaveMessages,
+          );
       if (quickSave) {
         // close the session **after** the response has been sent
         Future.delayed(Duration.zero, () {
@@ -430,8 +474,8 @@ class ReceiveController {
           // ignore: use_build_context_synchronously, discarded_futures
           Routerino.context.pushRootImmediately(() => const HomePage(initialTab: HomeTab.receive, appStart: false));
 
-          // open the dialog to open file instantly
-          if (filePath != null && filePath.isNotEmpty) {
+          // open the dialog to open file instantly unless silent quick save is enabled
+          if (!settings.silentQuickSave && filePath != null && filePath.isNotEmpty) {
             // ignore: discarded_futures
             OpenFileDialog.open(
               Routerino.context, // ignore: use_build_context_synchronously
@@ -514,12 +558,8 @@ class ReceiveController {
       return;
     }
 
-    // ignore: unawaited_futures, discarded_futures
-    server.ref.redux(selectedSendingFilesProvider).dispatchAsyncTakeResult(LoadSelectionFromArgsAction(args)).then((filesAdded) {
-      if (filesAdded) {
-        server.ref.redux(homePageControllerProvider).dispatch(ChangeTabAction(HomeTab.send));
-      }
-    });
+    // ignore: unawaited_futures
+    server.ref.global.dispatchAsync(HandleExternalArgsAction(args: args));
   }
 
   /// Accepts the file request with the given [fileNameMap] (file id -> desired file name).

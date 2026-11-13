@@ -4,7 +4,10 @@ import 'package:localsend_app/model/persistence/color_mode.dart';
 import 'package:localsend_app/pages/language_page.dart';
 import 'package:localsend_app/pages/tabs/settings_tab_vm.dart';
 import 'package:localsend_app/provider/device_info_provider.dart';
+import 'package:localsend_app/provider/favorites_provider.dart';
 import 'package:localsend_app/provider/local_ip_provider.dart';
+import 'package:localsend_app/provider/network/nearby_devices_provider.dart';
+import 'package:localsend_app/provider/network/quick_send_provider.dart';
 import 'package:localsend_app/provider/network/server/server_provider.dart';
 import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/util/native/autostart_helper.dart';
@@ -126,7 +129,18 @@ class SettingsTabController extends ReduxNotifier<SettingsTabVm> {
         if (state.showInContextMenu) {
           success = await disableContextMenu();
         } else {
-          success = await enableContextMenu();
+          String? targetAlias;
+          if (context.mounted) {
+            final fingerprint = context.ref.read(settingsProvider).defaultTargetFingerprint;
+            if (fingerprint != null) {
+              targetAlias = resolveTargetDisplayName(
+                fingerprint: fingerprint,
+                favorites: context.ref.read(favoritesProvider),
+                allDevices: context.ref.read(nearbyDevicesProvider).allDevices,
+              );
+            }
+          }
+          success = await enableContextMenu(targetAlias: targetAlias);
         }
         if (success) {
           redux.dispatch(_SetShowInContextMenuAction(!state.showInContextMenu));

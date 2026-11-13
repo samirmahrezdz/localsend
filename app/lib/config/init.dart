@@ -15,6 +15,7 @@ import 'package:localsend_app/provider/animation_provider.dart';
 import 'package:localsend_app/provider/app_arguments_provider.dart';
 import 'package:localsend_app/provider/device_info_provider.dart';
 import 'package:localsend_app/provider/network/nearby_devices_provider.dart';
+import 'package:localsend_app/provider/network/quick_send_provider.dart';
 import 'package:localsend_app/provider/network/server/server_provider.dart';
 import 'package:localsend_app/provider/network/webrtc/signaling_provider.dart';
 import 'package:localsend_app/provider/persistence_provider.dart';
@@ -56,6 +57,77 @@ import 'package:share_handler/share_handler.dart';
 import 'package:window_manager/window_manager.dart';
 
 final _logger = Logger('Init');
+RandomAccessFile? _startupLock;
+Timer? _startupLockTimer;
+
+void _releaseStartupLock() {
+  _startupLockTimer?.cancel();
+  _startupLockTimer = null;
+  final lock = _startupLock;
+  _startupLock = null;
+  if (lock != null) {
+    try {
+      lock.unlockSync();
+    } catch (_) {}
+    try {
+      lock.closeSync();
+    } catch (_) {}
+  }
+}
+
+/// Acquires an exclusive startup lock on Windows so simultaneous Explorer right-click
+/// invocations wait briefly for the first cold-starting instance to bind its HTTP server.
+Future<bool> _acquireStartupLockOrHandover({
+  required PersistenceService persistenceService,
+  required List<String> args,
+}) async {
+  if (!Platform.isWindows) {
+    return true;
+  }
+
+  final lockPath = '${Directory.systemTemp.path}${Platform.pathSeparator}localsend_start_${persistenceService.getPort()}.lock';
+  RandomAccessFile? opened;
+  try {
+    opened = File(lockPath).openSync(mode: FileMode.write);
+    opened.lockSync(FileLock.exclusive);
+    _startupLock = opened;
+    _startupLockTimer = Timer(const Duration(seconds: 4), _releaseStartupLock);
+    return true;
+  } on FileSystemException {
+    try {
+      opened?.closeSync();
+    } catch (_) {}
+  }
+
+  // Another instance holds the startup lock; wait for its server to come up and hand over args.
+  for (var i = 0; i < 25; i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    final handedOver = await notifyRunningInstance(
+      securityContext: persistenceService.getSecurityContext(),
+      port: persistenceService.getPort(),
+      https: persistenceService.isHttps(),
+      showToken: persistenceService.getShowToken(),
+      args: args,
+    );
+    if (handedOver) {
+      return false;
+    }
+
+    try {
+      opened = File(lockPath).openSync(mode: FileMode.write);
+      opened.lockSync(FileLock.exclusive);
+      _startupLock = opened;
+      _startupLockTimer = Timer(const Duration(seconds: 4), _releaseStartupLock);
+      return true;
+    } on FileSystemException {
+      try {
+        opened?.closeSync();
+      } catch (_) {}
+    }
+  }
+
+  return true;
+}
 
 /// Will be called before the MaterialApp started
 Future<RefenaContainer> preInit(List<String> args) async {
@@ -111,6 +183,14 @@ Future<RefenaContainer> preInit(List<String> args) async {
     );
     if (handedOver) {
       exit(0); // Another instance does exist
+    }
+
+    final shouldStart = await _acquireStartupLockOrHandover(
+      persistenceService: persistenceService,
+      args: args,
+    );
+    if (!shouldStart) {
+      exit(0);
     }
 
     // initialize tray AFTER i18n has been initialized
@@ -226,6 +306,8 @@ Future<void> postInit(BuildContext context, Ref ref, bool appStart) async {
     if (context.mounted) {
       context.showSnackBar(e.toString());
     }
+  } finally {
+    _releaseStartupLock();
   }
 
   try {
@@ -244,7 +326,7 @@ Future<void> postInit(BuildContext context, Ref ref, bool appStart) async {
       // handle dropped files
       pendingFilesStream.listen((files) async {
         await ref.global.dispatchAsync(
-          _HandleAppStartArgumentsAction(
+          HandleExternalArgsAction(
             args: files,
           ),
         );
@@ -262,7 +344,7 @@ Future<void> postInit(BuildContext context, Ref ref, bool appStart) async {
     } else {
       final args = ref.read(appArgumentsProvider);
       await ref.global.dispatchAsync(
-        _HandleAppStartArgumentsAction(
+        HandleExternalArgsAction(
           args: args,
         ),
       );
@@ -339,34 +421,24 @@ class _HandleShareIntentAction extends AsyncGlobalAction {
   @override
   Future<void> reduce() async {
     final message = payload.content;
-    if (message != null && message.trim().isNotEmpty) {
+    final hasMessage = message != null && message.trim().isNotEmpty;
+    if (hasMessage) {
       ref.redux(selectedSendingFilesProvider).dispatch(AddMessageAction(message: message));
     }
+    final attachments = payload.attachments?.where((a) => a != null).cast<SharedAttachment>().toList() ?? <SharedAttachment>[];
     await ref
         .redux(selectedSendingFilesProvider)
         .dispatchAsync(
           AddFilesAction(
-            files: payload.attachments?.where((a) => a != null).cast<SharedAttachment>() ?? <SharedAttachment>[],
+            files: attachments,
             converter: CrossFileConverters.convertSharedAttachment,
           ),
         );
 
     ref.redux(homePageControllerProvider).dispatch(ChangeTabAction(HomeTab.send));
-  }
-}
 
-class _HandleAppStartArgumentsAction extends AsyncGlobalAction {
-  final List<String> args;
-
-  _HandleAppStartArgumentsAction({
-    required this.args,
-  });
-
-  @override
-  Future<void> reduce() async {
-    final filesAdded = await ref.redux(selectedSendingFilesProvider).dispatchAsyncTakeResult(LoadSelectionFromArgsAction(args));
-    if (filesAdded) {
-      ref.redux(homePageControllerProvider).dispatch(ChangeTabAction(HomeTab.send));
+    if ((hasMessage || attachments.isNotEmpty) && shouldAutoSendForShare(settings: ref.read(settingsProvider))) {
+      ref.notifier(quickSendProvider).scheduleQuickSend();
     }
   }
 }

@@ -82,7 +82,15 @@
     },
     "sendModeHelp": "Explanation",
     "help": "Please ensure that the desired target is also on the same Wi-Fi network.",
-    "placeItems": "Place items to share."
+    "placeItems": "Place items to share.",
+    "quickSend": {
+      "defaultBadge": "Default",
+      "resolvingTarget": "Connecting to default device ({alias})…",
+      "sendingTo": "Sending to {alias}…",
+      "noDefaultTarget": "Set a default target device first in Device Details or Settings.",
+      "targetOffline": "Default device \"{alias}\" is not reachable right now.",
+      "messageReceived": "Copied message from {alias}"
+    }
   },
   "settingsTab": {
     "title": "Settings",
@@ -120,6 +128,14 @@
       "quickSaveFromFavorites": "@:general.quickSaveFromFavorites",
       "requirePin": "@:webSharePage.requirePin",
       "autoFinish": "Auto Finish",
+      "silentQuickSave": "Silent Quick Save",
+      "silentQuickSaveDescription": "Do not show the open-file popup after automatically receiving files",
+      "quickSaveMessages": "Quick Save for messages & links",
+      "quickSaveMessagesDescription": "Accept incoming text or links automatically and copy them to clipboard",
+      "backgroundListener": "Keep listening in background",
+      "backgroundListenerDescription": "Keep an active notification on Android so incoming transfers arrive even when the app is minimized or closed",
+      "backgroundListenerNotificationTitle": "LocalSend ready",
+      "backgroundListenerNotificationText": "Ready to receive files in the background",
       "destination": "Save to folder",
       "downloads": "(Downloads)",
       "saveToGallery": "Save media to gallery",
@@ -129,7 +145,15 @@
     "send": {
       "title": "Send",
       "shareViaLinkAutoAccept": "Automatically accept requests in \"Share via link\" mode",
-      "createChecksums": "Create checksums when sending files"
+      "createChecksums": "Create checksums when sending files",
+      "defaultTarget": "Default device",
+      "defaultTargetNone": "None",
+      "defaultTargetClear": "Clear",
+      "autoSendToDefault": "Auto-send to default device",
+      "autoSendToDefaultDescription": "Automatically send files opened via Send To, right-click menu, or mobile share",
+      "chooseDefaultTargetHint": "Set a device as default from Favorite devices or Device Details.",
+      "contextMenuTitle": "Send to {target}",
+      "contextMenuDefault": "Send with LocalSend"
     },
     "network": {
       "title": "Network",
@@ -211,6 +235,7 @@
   "deviceDetailsPage": {
     "title": "Device Details",
     "favorite": "Favorite",
+    "defaultTarget": "Default device",
     "verify": "Verify",
     "info": {
       "name": "Name",

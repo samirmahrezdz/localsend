@@ -18,11 +18,38 @@ class TransferNotification {
 
   static final _transfers = <String, _Transfer>{};
   static NotificationStrings? _strings;
+  static bool _persistentListening = false;
 
   /// Injects the translated strings. Must be called before the first transfer starts.
   /// The locale is pinned on app start, so one call is enough.
   static void init(NotificationStrings strings) {
     _strings = strings;
+  }
+
+  /// Whether persistent background listening is keeping the foreground service alive between transfers.
+  static bool get isPersistentListening => _persistentListening;
+
+  /// Keeps the Android foreground service notification alive when idle so the HTTP server
+  /// can continue receiving files while the app is minimized or the screen is off.
+  ///
+  /// When enabling while idle, must be called with the app in the foreground so Android 12+
+  /// allows starting the foreground service.
+  static void setPersistentListening(bool enabled) {
+    _persistentListening = enabled;
+    if (_transfers.isNotEmpty) {
+      return;
+    }
+
+    if (enabled) {
+      final strings = _requiredStrings;
+      ForegroundService.start(
+        channelName: strings.titleListening,
+        title: strings.titleListening,
+        text: strings.textListening,
+      );
+    } else {
+      ForegroundService.stop();
+    }
   }
 
   /// Whether [update] would reach the notification, so that callers can skip summing up the
@@ -46,11 +73,19 @@ class TransferNotification {
     _transfers[sessionId] = _Transfer(receiving: receiving);
 
     if (isFirst) {
-      ForegroundService.start(
-        channelName: _requiredStrings.titleReceiving,
-        title: _title(),
-        text: _text(),
-      );
+      if (_persistentListening) {
+        // The foreground service is already running; updating avoids Android 12+ background start restrictions.
+        ForegroundService.updateNotification(
+          title: _title(),
+          text: _text(),
+        );
+      } else {
+        ForegroundService.start(
+          channelName: _requiredStrings.titleReceiving,
+          title: _title(),
+          text: _text(),
+        );
+      }
     }
   }
 
@@ -82,7 +117,15 @@ class TransferNotification {
     }
 
     if (_transfers.isEmpty) {
-      ForegroundService.stop();
+      if (_persistentListening) {
+        final strings = _requiredStrings;
+        ForegroundService.updateNotification(
+          title: strings.titleListening,
+          text: strings.textListening,
+        );
+      } else {
+        ForegroundService.stop();
+      }
     } else {
       ForegroundService.updateNotification(title: _title(), text: _text());
     }

@@ -12,6 +12,7 @@ import 'package:localsend_app/provider/file_transfer_provider.dart';
 import 'package:localsend_app/provider/network/nearby_devices_provider.dart';
 import 'package:localsend_app/provider/network/scan_facade.dart';
 import 'package:localsend_app/provider/network/send_provider.dart';
+import 'package:localsend_app/provider/network/quick_send_provider.dart';
 import 'package:localsend_app/provider/selection/selected_sending_files_provider.dart';
 import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/util/favorites.dart';
@@ -50,6 +51,8 @@ class SendTab extends StatelessWidget {
         final sizingInformation = SizingInformation(MediaQuery.sizeOf(context).width);
         final buttonWidth = sizingInformation.isDesktop ? BigButton.desktopWidth : BigButton.mobileWidth;
         final ref = context.ref;
+        final quickSendStatus = ref.watch(quickSendProvider);
+        final defaultTargetFingerprint = ref.watch(settingsProvider.select((s) => s.defaultTargetFingerprint));
         return ResponsiveListView(
           padding: EdgeInsets.zero,
           children: [
@@ -162,11 +165,68 @@ class SendTab extends StatelessWidget {
                           const SizedBox(width: 15),
                         ],
                       ),
+                      if (defaultTargetFingerprint != null && vm.sendMode == SendMode.single)
+                        Padding(
+                          padding: const EdgeInsetsDirectional.only(top: 10, end: 15),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: Builder(
+                              builder: (context) {
+                                final targetAlias = resolveTargetDisplayName(
+                                  fingerprint: defaultTargetFingerprint,
+                                  favorites: vm.favoriteDevices,
+                                  allDevices: {for (final device in vm.nearbyDevices) device.fingerprint: device},
+                                );
+                                return FilledButton.icon(
+                                  onPressed: quickSendStatus.isBusy
+                                      ? null
+                                      : () async => await ref.notifier(quickSendProvider).dispatchQuickSendNow(explicitQuickSend: true),
+                                  icon: const Icon(Icons.bolt),
+                                  label: Text(
+                                    quickSendStatus.isBusy
+                                        ? t.sendTab.quickSend.sendingTo(alias: targetAlias)
+                                        : t.settingsTab.send.contextMenuTitle(target: targetAlias),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
             ],
+            if (quickSendStatus.isBusy)
+              Card(
+                margin: const EdgeInsets.only(bottom: 10, left: _horizontalPadding, right: _horizontalPadding),
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.bolt, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              t.sendTab.quickSend.resolvingTarget(alias: quickSendStatus.targetAlias ?? ''),
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const LinearProgressIndicator(),
+                    ],
+                  ),
+                ),
+              ),
             Row(
               children: [
                 const SizedBox(width: _horizontalPadding),
@@ -223,6 +283,7 @@ class SendTab extends StatelessWidget {
                       : DeviceListTile(
                           device: device,
                           isFavorite: favoriteEntry != null,
+                          isDefaultTarget: device.fingerprint == defaultTargetFingerprint,
                           nameOverride: favoriteEntry?.alias,
                           onDetailsTap: () async => await context.push(() => DeviceDetailsPage(device: device)),
                           onTap: () async => await vm.onTapDevice(context, device),

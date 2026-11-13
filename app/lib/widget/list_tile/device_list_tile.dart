@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/util/device_type_ext.dart';
 import 'package:localsend_app/widget/custom_progress_bar.dart';
 import 'package:localsend_app/widget/device_bage.dart';
@@ -8,6 +9,7 @@ import 'package:localsend_isolates/model/device.dart';
 class DeviceListTile extends StatelessWidget {
   final Device device;
   final bool isFavorite;
+  final bool isDefaultTarget;
 
   /// If not null, this name is used instead of [Device.alias].
   /// This is the case when the device is marked as favorite.
@@ -21,6 +23,7 @@ class DeviceListTile extends StatelessWidget {
   const DeviceListTile({
     required this.device,
     this.isFavorite = false,
+    this.isDefaultTarget = false,
     this.nameOverride,
     this.info,
     this.progress,
@@ -78,6 +81,12 @@ class DeviceListTile extends StatelessWidget {
                 backgroundColor: badgeColor,
                 foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
                 label: device.deviceModel!,
+              ),
+            if (isDefaultTarget)
+              DeviceBadge(
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                label: t.sendTab.quickSend.defaultBadge,
               ),
           ],
         ],

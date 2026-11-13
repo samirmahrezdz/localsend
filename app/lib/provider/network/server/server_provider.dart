@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/model/cross_file.dart';
 import 'package:localsend_app/model/state/server/server_state.dart';
@@ -10,12 +11,14 @@ import 'package:localsend_app/provider/network/server/controller/send_controller
 import 'package:localsend_app/provider/network/server/server_utils.dart';
 import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/util/alias_generator.dart';
+import 'package:localsend_app/util/native/platform_check.dart';
 import 'package:localsend_app/util/native/web_pages_loader.dart';
 import 'package:localsend_isolates/constants.dart';
 import 'package:localsend_isolates/isolate.dart';
 import 'package:localsend_isolates/model/dto/multicast_dto.dart';
 import 'package:localsend_isolates/rust/api/server.dart' show WebI18n, WebMode, WebParams;
 import 'package:localsend_isolates/util/rust.dart';
+import 'package:localsend_isolates/util/transfer_notification.dart';
 import 'package:logging/logging.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 
@@ -222,6 +225,7 @@ class ServerService extends Notifier<ServerState?> {
     );
 
     state = newServerState;
+    syncBackgroundListener();
     _logger.info('Server started. (Port: $port, ${https ? 'HTTPS' : 'HTTP'} only)');
     return newServerState;
   }
@@ -232,7 +236,17 @@ class ServerService extends Notifier<ServerState?> {
     _subscription = null;
     await ref.redux(parentIsolateProvider).dispatchAsync(IsolateHttpServerStopAction());
     state = null;
+    syncBackgroundListener();
     _logger.info('Server stopped.');
+  }
+
+  /// Syncs Android's persistent background listening notification with the running server state and setting.
+  void syncBackgroundListener() {
+    if (!checkPlatform([TargetPlatform.android])) {
+      return;
+    }
+    final enabled = state != null && ref.read(settingsProvider).backgroundListener;
+    TransferNotification.setPersistentListening(enabled);
   }
 
   Future<ServerState?> restartServerFromSettings() async {

@@ -82,7 +82,15 @@
     },
     "sendModeHelp": "شرح",
     "help": "يُرجى التأكد من أن الهدف المطلوب موجود أيضًا في نفس شبكة الواي فاي.",
-    "placeItems": "ضع العناصر للمشاركة."
+    "placeItems": "ضع العناصر للمشاركة.",
+    "quickSend": {
+      "defaultBadge": "افتراضي",
+      "resolvingTarget": "جارٍ الاتصال بالجهاز الافتراضي ({alias})…",
+      "sendingTo": "جارٍ الإرسال إلى {alias}…",
+      "noDefaultTarget": "حدد جهازًا افتراضيًا أولًا من تفاصيل الجهاز أو الإعدادات.",
+      "targetOffline": "تعذر الوصول إلى الجهاز الافتراضي \"{alias}\" حاليًا.",
+      "messageReceived": "تم استلام ونسخ رسالة من {alias}"
+    }
   },
   "settingsTab": {
     "title": "الإعدادات",
@@ -118,6 +126,14 @@
       "quickSaveFromFavorites": "@:general.quickSaveFromFavorites",
       "requirePin": "@:webSharePage.requirePin",
       "autoFinish": "إنهاء تلقائي",
+      "silentQuickSave": "حفظ سريع صامت",
+      "silentQuickSaveDescription": "عدم إظهار نافذة فتح الملف تلقائيًا بعد الاستلام",
+      "quickSaveMessages": "حفظ سريع للرسائل والروابط",
+      "quickSaveMessagesDescription": "قبول الرسائل والروابط الواردة تلقائيًا ونسخها إلى الحافظة",
+      "backgroundListener": "الاستماع المستمر في الخلفية",
+      "backgroundListenerDescription": "إبقاء إشعار دائم على أندرويد لاستلام الملفات مباشرة حتى عند تصغير التطبيق أو إغلاق الواجهة",
+      "backgroundListenerNotificationTitle": "LocalSend جاهز للاستقبال",
+      "backgroundListenerNotificationText": "يستمع في الخلفية لاستلام الملفات مباشرة",
       "destination": "احفظ في المجلد",
       "downloads": "(التنزيلات)",
       "saveToGallery": "حفظ الوسائط في المعرض",
@@ -127,7 +143,15 @@
     "send": {
       "title": "أرسِل",
       "shareViaLinkAutoAccept": "المشاركة عبر الرابط: قبول تلقائي",
-      "createChecksums": "إنشاء المجاميع الاختبارية عند إرسال الملفات"
+      "createChecksums": "إنشاء المجاميع الاختبارية عند إرسال الملفات",
+      "defaultTarget": "الجهاز الافتراضي",
+      "defaultTargetNone": "لا يوجد",
+      "defaultTargetClear": "مسح",
+      "autoSendToDefault": "إرسال تلقائي للجهاز الافتراضي",
+      "autoSendToDefaultDescription": "إرسال الملفات مباشرة إلى الجهاز الافتراضي عند استخدام Send To أو قائمة كليك يمين أو المشاركة",
+      "chooseDefaultTargetHint": "حدّد جهازًا افتراضيًا من الأجهزة المفضلة أو صفحة تفاصيل الجهاز.",
+      "contextMenuTitle": "إرسال إلى {target}",
+      "contextMenuDefault": "إرسال عبر LocalSend"
     },
     "network": {
       "title": "شبكة الاتصال",
@@ -209,6 +233,7 @@
   "deviceDetailsPage": {
     "title": "تفاصيل الجهاز",
     "favorite": "المفضلة",
+    "defaultTarget": "الجهاز الافتراضي",
     "verify": "تحقق",
     "info": {
       "name": "الاسم",

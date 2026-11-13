@@ -40,6 +40,11 @@ class SettingsState with SettingsStateMappable {
   final bool verifyChecksums; // verify checksums when receiving files
   final int discoveryTimeout;
   final bool advancedSettings;
+  final String? defaultTargetFingerprint; // fingerprint of the default quick-send target device
+  final bool autoSendToDefault; // automatically send files passed from SendTo / share intent to default target
+  final bool silentQuickSave; // suppress OpenFileDialog popup after quick save
+  final bool quickSaveMessages; // auto-accept incoming text messages/links during quick save
+  final bool backgroundListener; // keep Android foreground service alive while server runs
 
   const SettingsState({
     required this.showToken,
@@ -73,5 +78,10 @@ class SettingsState with SettingsStateMappable {
     required this.verifyChecksums,
     required this.discoveryTimeout,
     required this.advancedSettings,
+    this.defaultTargetFingerprint,
+    this.autoSendToDefault = true,
+    this.silentQuickSave = false,
+    this.quickSaveMessages = false,
+    this.backgroundListener = false,
   });
 }

@@ -8,6 +8,9 @@ import 'package:localsend_app/pages/changelog_page.dart';
 import 'package:localsend_app/pages/donation/donation_page.dart';
 import 'package:localsend_app/pages/settings/network_interfaces_page.dart';
 import 'package:localsend_app/pages/tabs/settings_tab_controller.dart';
+import 'package:localsend_app/provider/favorites_provider.dart';
+import 'package:localsend_app/provider/network/nearby_devices_provider.dart';
+import 'package:localsend_app/provider/network/quick_send_provider.dart';
 import 'package:localsend_app/provider/network/server/server_provider.dart';
 import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/provider/version_provider.dart';
@@ -19,6 +22,7 @@ import 'package:localsend_app/util/native/macos_channel.dart';
 import 'package:localsend_app/util/native/pick_directory_path.dart';
 import 'package:localsend_app/util/native/platform_check.dart';
 import 'package:localsend_app/widget/custom_dropdown_button.dart';
+import 'package:localsend_app/widget/dialogs/default_target_dialog.dart';
 import 'package:localsend_app/widget/dialogs/encryption_disabled_notice.dart';
 import 'package:localsend_app/widget/dialogs/pin_dialog.dart';
 import 'package:localsend_app/widget/dialogs/quick_save_from_favorites_notice.dart';
@@ -140,7 +144,7 @@ class SettingsTab extends StatelessWidget {
                       ),
                     ),
                   ],
-                  if (vm.advanced && checkPlatform([TargetPlatform.windows])) ...[
+                  if (checkPlatform([TargetPlatform.windows])) ...[
                     _BooleanEntry(
                       label: t.settingsTab.general.showInContextMenu,
                       value: vm.showInContextMenu,
@@ -269,6 +273,32 @@ class SettingsTab extends StatelessWidget {
                     await ref.notifier(settingsProvider).setSaveToHistory(b);
                   },
                 ),
+                _BooleanEntry(
+                  label: t.settingsTab.receive.silentQuickSave,
+                  description: t.settingsTab.receive.silentQuickSaveDescription,
+                  value: vm.settings.silentQuickSave,
+                  onChanged: (b) async {
+                    await ref.notifier(settingsProvider).setSilentQuickSave(b);
+                  },
+                ),
+                _BooleanEntry(
+                  label: t.settingsTab.receive.quickSaveMessages,
+                  description: t.settingsTab.receive.quickSaveMessagesDescription,
+                  value: vm.settings.quickSaveMessages,
+                  onChanged: (b) async {
+                    await ref.notifier(settingsProvider).setQuickSaveMessages(b);
+                  },
+                ),
+                if (checkPlatform([TargetPlatform.android]))
+                  _BooleanEntry(
+                    label: t.settingsTab.receive.backgroundListener,
+                    description: t.settingsTab.receive.backgroundListenerDescription,
+                    value: vm.settings.backgroundListener,
+                    onChanged: (b) async {
+                      await ref.notifier(settingsProvider).setBackgroundListener(b);
+                      ref.notifier(serverProvider).syncBackgroundListener();
+                    },
+                  ),
                 if (vm.advanced)
                   _BooleanEntry(
                     label: t.settingsTab.receive.verifyChecksums,
@@ -284,10 +314,42 @@ class SettingsTab extends StatelessWidget {
                   ),
               ],
             ),
-            if (vm.advanced)
-              _SettingsSection(
-                title: t.settingsTab.send.title,
-                children: [
+            _SettingsSection(
+              title: t.settingsTab.send.title,
+              children: [
+                Builder(
+                  builder: (context) {
+                    final defaultFingerprint = vm.settings.defaultTargetFingerprint;
+                    final favorites = ref.watch(favoritesProvider);
+                    final allDevices = ref.watch(nearbyDevicesProvider).allDevices;
+                    final targetLabel = defaultFingerprint == null
+                        ? t.settingsTab.send.defaultTargetNone
+                        : resolveTargetDisplayName(
+                            fingerprint: defaultFingerprint,
+                            favorites: favorites,
+                            allDevices: allDevices,
+                          );
+                    return _ButtonEntry(
+                      label: t.settingsTab.send.defaultTarget,
+                      buttonLabel: targetLabel,
+                      onTap: () async {
+                        await showDialog(
+                          context: context,
+                          builder: (_) => const DefaultTargetDialog(),
+                        );
+                      },
+                    );
+                  },
+                ),
+                _BooleanEntry(
+                  label: t.settingsTab.send.autoSendToDefault,
+                  description: t.settingsTab.send.autoSendToDefaultDescription,
+                  value: vm.settings.autoSendToDefault,
+                  onChanged: (b) async {
+                    await ref.notifier(settingsProvider).setAutoSendToDefault(b);
+                  },
+                ),
+                if (vm.advanced)
                   _BooleanEntry(
                     label: t.settingsTab.send.shareViaLinkAutoAccept,
                     value: vm.settings.shareViaLinkAutoAccept,
@@ -295,6 +357,7 @@ class SettingsTab extends StatelessWidget {
                       await ref.notifier(settingsProvider).setShareViaLinkAutoAccept(b);
                     },
                   ),
+                if (vm.advanced)
                   _BooleanEntry(
                     label: t.settingsTab.send.createChecksums,
                     value: vm.settings.createChecksums,
@@ -302,8 +365,8 @@ class SettingsTab extends StatelessWidget {
                       await ref.notifier(settingsProvider).setCreateChecksums(b);
                     },
                   ),
-                ],
-              ),
+              ],
+            ),
             _SettingsSection(
               title: t.settingsTab.network.title,
               children: [

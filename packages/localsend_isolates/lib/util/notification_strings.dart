@@ -10,6 +10,12 @@ class NotificationStrings {
   /// Title while files are being sent, e.g. "Sending files".
   final String titleSending;
 
+  /// Title while the persistent background receive listener is idle.
+  final String titleListening;
+
+  /// Body text while the persistent background receive listener is idle.
+  final String textListening;
+
   /// Remaining time below an hour, e.g. "1:30" or "0:45". [ss] is zero padded.
   final String Function({required Object m, required Object ss}) remainingTimeMinutes;
 
@@ -19,6 +25,8 @@ class NotificationStrings {
   const NotificationStrings({
     required this.titleReceiving,
     required this.titleSending,
+    this.titleListening = 'LocalSend',
+    this.textListening = 'Ready to receive files in the background',
     required this.remainingTimeMinutes,
     required this.remainingTimeLong,
   });

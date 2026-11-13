@@ -4,10 +4,12 @@ import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/model/persistence/favorite_device.dart';
 import 'package:localsend_app/pages/verify_page.dart';
 import 'package:localsend_app/provider/favorites_provider.dart';
+import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/util/favorites.dart';
 import 'package:localsend_app/util/system_date_time_formatter.dart';
 import 'package:localsend_app/util/ui/snackbar.dart';
 import 'package:localsend_app/widget/big_button.dart';
+import 'package:localsend_app/widget/dialogs/default_target_dialog.dart';
 import 'package:localsend_app/widget/dialogs/favorite_delete_dialog.dart';
 import 'package:localsend_app/widget/dialogs/favorite_edit_dialog.dart';
 import 'package:localsend_app/widget/responsive_list_view.dart';
@@ -72,29 +74,49 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> with Refena {
       body: ResponsiveListView(
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 20),
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              BigButton(
-                icon: favoriteEntry != null ? Icons.favorite : Icons.favorite_border,
-                label: t.deviceDetailsPage.favorite,
-                filled: favoriteEntry != null,
-                width: 120,
-                onTap: () async => await _toggleFavorite(favoriteEntry),
-              ),
-              const SizedBox(width: 20),
-              BigButton(
-                icon: Icons.verified_user,
-                label: t.deviceDetailsPage.verify,
-                filled: false,
-                width: 120,
-                onTap: () async => await context.push(
-                  () => VerifyPage(
-                    fingerprint: CombinedFingerprint.load(context, device.fingerprint),
+          Builder(
+            builder: (context) {
+              final isDefaultTarget = ref.watch(
+                settingsProvider.select((state) => state.defaultTargetFingerprint == device.fingerprint),
+              );
+              return Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 15,
+                runSpacing: 10,
+                children: [
+                  BigButton(
+                    icon: favoriteEntry != null ? Icons.favorite : Icons.favorite_border,
+                    label: t.deviceDetailsPage.favorite,
+                    filled: favoriteEntry != null,
+                    width: 120,
+                    onTap: () async => await _toggleFavorite(favoriteEntry),
                   ),
-                ),
-              ),
-            ],
+                  BigButton(
+                    icon: isDefaultTarget ? Icons.star : Icons.star_border,
+                    label: t.deviceDetailsPage.defaultTarget,
+                    filled: isDefaultTarget,
+                    width: 120,
+                    onTap: () async => await applyDefaultTargetSelection(
+                      ref: ref,
+                      fingerprint: isDefaultTarget ? null : device.fingerprint,
+                      alias: favoriteEntry?.alias ?? device.alias,
+                      device: device,
+                    ),
+                  ),
+                  BigButton(
+                    icon: Icons.verified_user,
+                    label: t.deviceDetailsPage.verify,
+                    filled: false,
+                    width: 120,
+                    onTap: () async => await context.push(
+                      () => VerifyPage(
+                        fingerprint: CombinedFingerprint.load(context, device.fingerprint),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 30),
           Table(
