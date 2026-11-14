@@ -114,7 +114,9 @@
       },
       "saveWindowPlacement": "إنهاء: حفظ موقع النافذة",
       "saveWindowPlacementWindows": "حفظ موضع النافذة بعد الخروج",
-      "minimizeToTray": "إنهاء : أخفاء في شريط المهام",
+      "alwaysOnTop": "دائماً في المقدمة",
+      "alwaysOnTopUnavailable": "غير مدعوم على Wayland",
+      "minimizeToTray": "التصغير إلى شريط المهام عند الإغلاق",
       "launchAtStartup": "تشغيل تلقائي بعد تسجيل الدخول",
       "launchMinimized": "تشغيل تلقائي: ابدأ مخفيًا",
       "showInContextMenu": "إظهار LocalSend في قائمة السياق",
@@ -475,7 +477,8 @@
       "name": "اسم الجهاز",
       "auto": "(تلقائي)",
       "ip": "عنوان IP",
-      "port": "المنفذ"
+      "port": "المنفذ",
+      "invalidPort": "أدخل رقماً صحيحاً بين 1 و 65535."
     },
     "fileInfo": {
       "title": "معلومات الملف",
