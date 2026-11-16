@@ -310,6 +310,14 @@ Future<void> postInit(BuildContext context, Ref ref, bool appStart) async {
     _releaseStartupLock();
   }
 
+  if (checkPlatform([TargetPlatform.android])) {
+    // "Always receive" quick settings tile: listen for toggles while running,
+    // and apply a toggle made while the app was closed (now that the server runs in the foreground).
+    final serverNotifier = ref.notifier(serverProvider);
+    setReceiveTileCommandHandlerAndroid(serverNotifier.applyReceiveTileCommand);
+    await serverNotifier.applyReceiveTileCommand();
+  }
+
   try {
     ref.redux(nearbyDevicesProvider).dispatchAsync(StartDiscoveryListener()); // ignore: unawaited_futures
   } catch (e) {

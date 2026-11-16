@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="receive_tile_label">Always receive</string>
+    <string name="receive_tile_on">On</string>
+    <string name="receive_tile_off">Off</string>
+</resources>

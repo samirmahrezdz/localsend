@@ -11,6 +11,7 @@ import 'package:localsend_app/provider/network/server/controller/send_controller
 import 'package:localsend_app/provider/network/server/server_utils.dart';
 import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/util/alias_generator.dart';
+import 'package:localsend_app/util/native/channel/android_channel.dart';
 import 'package:localsend_app/util/native/platform_check.dart';
 import 'package:localsend_app/util/native/web_pages_loader.dart';
 import 'package:localsend_isolates/constants.dart';
@@ -245,8 +246,31 @@ class ServerService extends Notifier<ServerState?> {
     if (!checkPlatform([TargetPlatform.android])) {
       return;
     }
-    final enabled = state != null && ref.read(settingsProvider).backgroundListener;
-    TransferNotification.setPersistentListening(enabled);
+    final active = state != null && ref.read(settingsProvider).backgroundListener;
+    TransferNotification.setPersistentListening(active);
+    unawaited(setReceiveTileStateAndroid(active));
+  }
+
+  /// Applies a toggle of the "Always receive" quick settings tile (Android).
+  Future<void> applyReceiveTileCommand() async {
+    if (!checkPlatform([TargetPlatform.android])) {
+      return;
+    }
+    final command = await consumeReceiveTileCommandAndroid();
+    if (command != null && command != ref.read(settingsProvider).backgroundListener) {
+      await ref.notifier(settingsProvider).setBackgroundListener(command);
+    }
+    if (command == true && state == null) {
+      try {
+        await startServerFromSettings();
+      } catch (e) {
+        _logger.warning('Could not start server from receive tile', e);
+      }
+    }
+    syncBackgroundListener();
+    if (command != null) {
+      await receiveTileCommandAppliedAndroid();
+    }
   }
 
   Future<ServerState?> restartServerFromSettings() async {

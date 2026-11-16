@@ -88,6 +88,45 @@ Future<void> openGallery() async {
   await _methodChannel.invokeMethod('openGallery');
 }
 
+/// Returns and clears the toggle made from the "Always receive" quick settings tile
+/// that has not been applied yet: true = enable, false = disable, null = nothing pending.
+Future<bool?> consumeReceiveTileCommandAndroid() async {
+  try {
+    return await _methodChannel.invokeMethod<bool>('consumeReceiveTileCommand');
+  } catch (e) {
+    _logger.warning('Could not read receive tile command', e);
+    return null;
+  }
+}
+
+/// Mirrors the background listener setting to the quick settings tile.
+Future<void> setReceiveTileStateAndroid(bool enabled) async {
+  try {
+    await _methodChannel.invokeMethod('setReceiveTileState', enabled);
+  } catch (e) {
+    _logger.warning('Could not update receive tile state', e);
+  }
+}
+
+/// Tells MainActivity that a tile command was applied, so it can move back if the tile opened it.
+Future<void> receiveTileCommandAppliedAndroid() async {
+  try {
+    await _methodChannel.invokeMethod('receiveTileCommandApplied');
+  } catch (e) {
+    _logger.warning('Could not acknowledge receive tile command', e);
+  }
+}
+
+/// Registers [onCommand], called when the tile was toggled while the app is running.
+void setReceiveTileCommandHandlerAndroid(Future<void> Function() onCommand) {
+  _methodChannel.setMethodCallHandler((call) async {
+    if (call.method == 'receiveTileCommand') {
+      await onCommand();
+    }
+    return null;
+  });
+}
+
 @MappableClass()
 class PickDirectoryResult with PickDirectoryResultMappable {
   final String directoryUri;

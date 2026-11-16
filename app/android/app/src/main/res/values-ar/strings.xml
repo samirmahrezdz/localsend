@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="receive_tile_label">استقبال دائم</string>
+    <string name="receive_tile_on">مفعّل</string>
+    <string name="receive_tile_off">متوقف</string>
+</resources>

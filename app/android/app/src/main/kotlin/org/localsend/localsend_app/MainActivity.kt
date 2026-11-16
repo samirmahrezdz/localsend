@@ -10,6 +10,7 @@ import android.database.Cursor
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.Settings
@@ -47,7 +48,63 @@ class MainActivity : FlutterActivity() {
     private val pendingShareIntents = mutableListOf<Intent>()
     private var shareIntentReady = false
 
+    private var methodChannel: MethodChannel? = null
+
+    /// Set when the "Always receive" tile opened the app only to enable listening:
+    /// once Dart applied the command, the app moves itself back if it was not already open.
+    private var moveBackAfterTileCommand = false
+    private var notifyTileCommandOnResume = false
+    private var isStarted = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        if (intent?.getBooleanExtra(ReceiveTileService.EXTRA_FROM_RECEIVE_TILE, false) == true) {
+            // Cold start: Dart consumes the pending command itself after the server started.
+            moveBackAfterTileCommand = true
+        }
+        super.onCreate(savedInstanceState)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        isStarted = true
+    }
+
+    override fun onResume() {
+        super.onResume()
+        isInForeground = true
+        if (notifyTileCommandOnResume) {
+            // Notify only once resumed, so Dart starts the foreground service while visible.
+            notifyTileCommandOnResume = false
+            notifyReceiveTileCommand()
+        }
+    }
+
+    override fun onPause() {
+        isInForeground = false
+        super.onPause()
+    }
+
+    override fun onStop() {
+        isStarted = false
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        ReceiveTileState.commandListener = null
+        ReceiveTileState.clearActive(this)
+        methodChannel = null
+        super.onDestroy()
+    }
+
+    private fun notifyReceiveTileCommand() {
+        methodChannel?.invokeMethod("receiveTileCommand", null)
+    }
+
     override fun onNewIntent(intent: Intent) {
+        if (intent.getBooleanExtra(ReceiveTileService.EXTRA_FROM_RECEIVE_TILE, false)) {
+            moveBackAfterTileCommand = !isStarted
+            notifyTileCommandOnResume = true
+        }
         if (!shareIntentReady && (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_SEND_MULTIPLE)) {
             pendingShareIntents.add(intent)
             return
@@ -67,6 +124,10 @@ class MainActivity : FlutterActivity() {
     // Overriding the static methods we need from the Java class, as described
     // in the documentation of `FlutterActivity.NewEngineIntentBuilder`
     companion object {
+        /// Whether the activity is currently resumed (used by [ReceiveTileService]).
+        @Volatile
+        var isInForeground = false
+
         fun withNewEngine(): NewEngineIntentBuilder {
             return NewEngineIntentBuilder(MainActivity::class.java)
         }
@@ -78,11 +139,31 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(
+        val channel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             CHANNEL
-        ).setMethodCallHandler { call, result ->
+        )
+        methodChannel = channel
+        ReceiveTileState.commandListener = { notifyReceiveTileCommand() }
+        channel.setMethodCallHandler { call, result ->
             when (call.method) {
+                "consumeReceiveTileCommand" -> {
+                    result.success(ReceiveTileState.consumePending(this))
+                }
+
+                "setReceiveTileState" -> {
+                    ReceiveTileState.setEnabled(this, call.arguments as Boolean)
+                    result.success(null)
+                }
+
+                "receiveTileCommandApplied" -> {
+                    if (moveBackAfterTileCommand) {
+                        moveBackAfterTileCommand = false
+                        moveTaskToBack(true)
+                    }
+                    result.success(null)
+                }
+
                 "pickDirectory" -> {
                     pendingResult = result
                     openDirectoryPicker(onlyPath = false)
